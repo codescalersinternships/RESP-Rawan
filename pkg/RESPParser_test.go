@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -14,7 +15,7 @@ func TestLoadFromFile(t *testing.T) {
 		{
 			testcaseName: "Normal case: ini file is present",
 			filePath:     "testdata/resp.txt",
-			err: nil,
+			err:          nil,
 		},
 		{
 			testcaseName: "corner case: empty file",
@@ -40,23 +41,39 @@ func TestLoadFromFile(t *testing.T) {
 	}
 }
 
-
 func TestParse(t *testing.T) {
 
 	const filePath = "testdata/resp.txt"
 
 	testcases := []struct {
 		testcaseName string
-		
+		fileLines    []string
+		err          error
+		expected     []RespType
 	}{
-		// {
-		// 	testcaseName: "Normal case: file is present",
-		// },
-		// {
-		// 	testcaseName: "corner case: empty file",
-		// },
 		{
-			testcaseName: "corner case: file not found",
+			testcaseName: "Simple String",
+			fileLines:    []string{"+OK"},
+			err:          nil,
+			expected:     []RespType{SimpleString{Value: "OK"}},
+		},
+		{
+			testcaseName: "Simple Error",
+			fileLines:    []string{"-ERR unknown command"},
+			err:          nil,
+			expected:     []RespType{SimpleError{Value: "ERR unknown command"}},
+		},
+		{
+			testcaseName: "Integer",
+			fileLines:    []string{":12345"},
+			err:          nil,
+			expected:     []RespType{Integer{Value: 12345}},
+		},
+		{
+			testcaseName: "Unknown Type",
+			fileLines:    []string{"?Unknown"},
+			err:          ErrUnkType,
+			expected:     make([]RespType, 0),
 		},
 	}
 
@@ -64,21 +81,15 @@ func TestParse(t *testing.T) {
 
 		t.Run(testcase.testcaseName, func(t *testing.T) {
 			p := NewParser()
-			p.LoadFromFile(filePath)
-
-			for _, resp := range p.RespList {
-				switch r := resp.(type) {
-				case SimpleString:
-					t.Log("Simple String", r.Value)
-				case SimpleError:
-					t.Log("Simple Error", r.Value)
-				case Integer:
-					t.Log("Integer", r.Value)
-				default:
-					t.Errorf("Unknown RESP type: %s", resp.Type())
-				}
+			err := p.parse(testcase.fileLines)
+			if err != testcase.err {
+				t.Errorf("expected error: %v, got: %v", testcase.err, err)
 			}
-			
+
+			if !reflect.DeepEqual(p.RespList, testcase.expected) {
+				t.Errorf("expected %v, got %v", testcase.expected, p.RespList)
+			}
+
 		})
 	}
 }
