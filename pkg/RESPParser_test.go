@@ -50,7 +50,7 @@ func TestParse(t *testing.T) {
 		
 	}{
 		// {
-		// 	testcaseName: "Normal case: ini file is present",
+		// 	testcaseName: "Normal case: file is present",
 		// },
 		// {
 		// 	testcaseName: "corner case: empty file",
@@ -66,18 +66,18 @@ func TestParse(t *testing.T) {
 			p := NewParser()
 			p.LoadFromFile(filePath)
 
-			// for _, resp := range p.RespList {
-			// 	switch resp.Type() {
-			// 	case "SimpleString":
-			// 		t.Logf("Simple String: %s", resp)
-			// 	case "SimpleError":
-			// 		t.Logf("Simple Error: %s", resp)
-			// 	case "Integer":
-			// 		t.Logf("Integer: %s", resp)
-			// 	default:
-			// 		t.Errorf("Unknown RESP type: %s", resp.Type())
-			// 	}
-			// }
+			for _, resp := range p.RespList {
+				switch r := resp.(type) {
+				case SimpleString:
+					t.Log("Simple String", r.Value)
+				case SimpleError:
+					t.Log("Simple Error", r.Value)
+				case Integer:
+					t.Log("Integer", r.Value)
+				default:
+					t.Errorf("Unknown RESP type: %s", resp.Type())
+				}
+			}
 			
 		})
 	}

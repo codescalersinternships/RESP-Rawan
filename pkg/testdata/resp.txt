@@ -1,1 +1,6 @@
-+OK\r\n-ERR unknown command 'foo'\r\n:12345\r\n:1\r\n:2\r\n:3\r\n
++OK
+-ERR unknown command 'foo'
+:12345
+:1
+:2
+:3

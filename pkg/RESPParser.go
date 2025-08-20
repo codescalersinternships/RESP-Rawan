@@ -104,8 +104,20 @@ func (p *Parser) LoadFromFile(path string) error {
 	if len(data) == 0 {
 		return ErrEmptyFile
 	}
-	lines := strings.Split(string(data), "\r\n")
 
-	p.parse(lines)
+	lines := strings.Split(string(data), "\n")
+
+
+	cleanedLines := make([]string, 0, len(lines))
+	for _,line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if len(trimmedLine) == 0 {
+			continue 
+		}
+		cleanedLines = append(cleanedLines, trimmedLine)
+	}
+
+
+	p.parse(cleanedLines)
 	return nil
 }
