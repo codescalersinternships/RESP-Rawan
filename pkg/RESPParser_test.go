@@ -47,37 +47,43 @@ func TestParse(t *testing.T) {
 
 	testcases := []struct {
 		testcaseName string
-		fileString    string
+		fileString   string
 		err          error
 		expected     []RespType
 	}{
 		{
 			testcaseName: "Simple String",
-			fileString:    "+OK",
+			fileString:   "+OK",
 			err:          nil,
 			expected:     []RespType{SimpleString{Value: "OK"}},
 		},
 		{
 			testcaseName: "Simple Error",
-			fileString:    "-ERR unknown command",
+			fileString:   "-ERR unknown command",
 			err:          nil,
 			expected:     []RespType{SimpleError{Value: "ERR unknown command"}},
 		},
 		{
 			testcaseName: "Integer",
-			fileString:    ":12345",
+			fileString:   ":12345",
 			err:          nil,
 			expected:     []RespType{Integer{Value: 12345}},
 		},
 		{
 			testcaseName: "Bulk String",
-			fileString:    "$5\r\nhello\r\n",
+			fileString:   "$5\r\nhello\r\n",
 			err:          nil,
 			expected:     []RespType{BulkStrings{Value: "hello", Length: 5}},
 		},
 		{
+			testcaseName: "Null Bulk String",
+			fileString:   "$-1\r\n",
+			err:          nil,
+			expected:     []RespType{BulkStrings{Value: "", Length: -1}},
+		},
+		{
 			testcaseName: "Unknown Type",
-			fileString:    "?Unknown",
+			fileString:   "?Unknown",
 			err:          ErrUnkType,
 			expected:     make([]RespType, 0),
 		},
