@@ -74,7 +74,7 @@ func TestParse(t *testing.T) {
 			fileString:   "$5\r\nhello\r\n",
 			err:          nil,
 			expected:     []RespType{BulkStrings{Value: "hello", Length: 5}},
-		},	
+		},
 		{
 			testcaseName: "Empty Bulk String",
 			fileString:   "$0\r\n\r\n",
@@ -88,6 +88,44 @@ func TestParse(t *testing.T) {
 			expected:     []RespType{BulkStrings{Value: "", Length: -1}},
 		},
 		{
+			testcaseName: "Empty Array",
+			fileString:   "*0\r\n",
+			err:          nil,
+			expected:     []RespType{Array{Values: make([]RespType, 0), Length: 0}},
+		},
+		{
+			testcaseName: "Array",
+			fileString:   "*3\r\n:1\r\n:2\r\n:3\r\n",
+			err:          nil,
+			expected: []RespType{Array{Values: []RespType{
+				Integer{Value: 1},
+				Integer{Value: 2},
+				Integer{Value: 3},
+			}, Length: 3}},
+		},
+		{
+			testcaseName: "All different types",
+			fileString:   "*5\r\n:1\r\n+OK\r\n$6\r\nfoobar\r\n-Error message\r\n*2\r\n:2\r\n+World\r\n",
+			err:          nil,
+			expected: []RespType{
+				Array{
+					Values: []RespType{
+						Integer{Value: 1},
+						SimpleString{Value: "OK"},
+						BulkStrings{Value: "foobar", Length: 6},
+						SimpleError{Value: "Error message"},
+						Array{
+							Values: []RespType{
+								Integer{Value: 2},
+								SimpleString{Value: "World"},
+							},
+							Length: 2,
+						},
+					},
+					Length: 5,
+				}},
+		},
+		{
 			testcaseName: "Unknown Type",
 			fileString:   "?Unknown",
 			err:          ErrUnkType,
@@ -99,14 +137,14 @@ func TestParse(t *testing.T) {
 
 		t.Run(testcase.testcaseName, func(t *testing.T) {
 			p := NewParser()
-			cleanedLines := p.cleanLines(testcase.fileString)
+			cleanedLines := cleanLines(testcase.fileString)
 			err := p.parse(cleanedLines)
 			if err != testcase.err {
 				t.Errorf("expected error: %v, got: %v", testcase.err, err)
 			}
 
 			if !reflect.DeepEqual(p.RespList, testcase.expected) {
-				t.Errorf("expected %v, got %v", testcase.expected, p.RespList)
+				t.Fatalf("mismatch:\nexpected: %#v\ngot: %#v", testcase.expected, p.RespList)
 			}
 
 		})
