@@ -74,6 +74,12 @@ func TestParse(t *testing.T) {
 			fileString:   "$5\r\nhello\r\n",
 			err:          nil,
 			expected:     []RespType{BulkStrings{Value: "hello", Length: 5}},
+		},	
+		{
+			testcaseName: "Empty Bulk String",
+			fileString:   "$0\r\n\r\n",
+			err:          nil,
+			expected:     []RespType{BulkStrings{Value: "", Length: 0}},
 		},
 		{
 			testcaseName: "Null Bulk String",

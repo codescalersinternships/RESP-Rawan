@@ -97,6 +97,11 @@ func (p *Parser) parse(lines []string) error {
 				p.RespList = append(p.RespList, BulkStrings{Value: "", Length: -1})
 				continue
 			}
+
+			if length == 0 { // empty bulk string
+				p.RespList = append(p.RespList, BulkStrings{Value: "", Length: 0})
+				continue
+			}
 			value := lines[i+1]
 
 			if len(value) != length {
