@@ -47,31 +47,37 @@ func TestParse(t *testing.T) {
 
 	testcases := []struct {
 		testcaseName string
-		fileLines    []string
+		fileString    string
 		err          error
 		expected     []RespType
 	}{
 		{
 			testcaseName: "Simple String",
-			fileLines:    []string{"+OK"},
+			fileString:    "+OK",
 			err:          nil,
 			expected:     []RespType{SimpleString{Value: "OK"}},
 		},
 		{
 			testcaseName: "Simple Error",
-			fileLines:    []string{"-ERR unknown command"},
+			fileString:    "-ERR unknown command",
 			err:          nil,
 			expected:     []RespType{SimpleError{Value: "ERR unknown command"}},
 		},
 		{
 			testcaseName: "Integer",
-			fileLines:    []string{":12345"},
+			fileString:    ":12345",
 			err:          nil,
 			expected:     []RespType{Integer{Value: 12345}},
 		},
 		{
+			testcaseName: "Bulk String",
+			fileString:    "$5\r\nhello\r\n",
+			err:          nil,
+			expected:     []RespType{BulkStrings{Value: "hello", Length: 5}},
+		},
+		{
 			testcaseName: "Unknown Type",
-			fileLines:    []string{"?Unknown"},
+			fileString:    "?Unknown",
 			err:          ErrUnkType,
 			expected:     make([]RespType, 0),
 		},
@@ -81,7 +87,8 @@ func TestParse(t *testing.T) {
 
 		t.Run(testcase.testcaseName, func(t *testing.T) {
 			p := NewParser()
-			err := p.parse(testcase.fileLines)
+			cleanedLines := p.cleanLines(testcase.fileString)
+			err := p.parse(cleanedLines)
 			if err != testcase.err {
 				t.Errorf("expected error: %v, got: %v", testcase.err, err)
 			}
