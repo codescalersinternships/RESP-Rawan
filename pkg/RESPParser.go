@@ -34,7 +34,8 @@ func (i Integer) Type() string   { return "Integer" }
 func (i Integer) String() string { return fmt.Sprintf(":%d\r\n", i.Value) }
 
 type BulkStrings struct {
-	Value string
+	Length int
+	Value  string
 }
 
 func (b BulkStrings) Type() string   { return "BulkStrings" }
@@ -86,12 +87,44 @@ func (p *Parser) parse(lines []string) error {
 				return ErrInvalidRESP
 			}
 			p.RespList = append(p.RespList, Integer{Value: value})
+		case '$': //Bulk String $<length>\r\n<data>\r\n
+			var length int
+			if _, err := fmt.Sscanf(line[1:], "%d", &length); err != nil {
+				return ErrInvalidRESP
+			}
+
+			if length < 0 { // null bulk string
+				p.RespList = append(p.RespList, BulkStrings{Value: "", Length: -1})
+				continue
+			}
+			value := lines[i+1]
+
+			if len(value) != length {
+				return ErrInvalidRESP
+			}
+
+			p.RespList = append(p.RespList, BulkStrings{Value: value, Length: length})
+			i++
 
 		default:
 			return ErrUnkType
 		}
 	}
 	return nil
+}
+
+func (p *Parser) cleanLines(data string) []string {
+	lines := strings.Split(string(data), "\n")
+
+	cleanedLines := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if len(trimmedLine) == 0 {
+			continue
+		}
+		cleanedLines = append(cleanedLines, trimmedLine)
+	}
+	return cleanedLines
 }
 
 func (p *Parser) LoadFromFile(path string) error {
@@ -105,19 +138,7 @@ func (p *Parser) LoadFromFile(path string) error {
 		return ErrEmptyFile
 	}
 
-	lines := strings.Split(string(data), "\n")
-
-
-	cleanedLines := make([]string, 0, len(lines))
-	for _,line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-		if len(trimmedLine) == 0 {
-			continue 
-		}
-		cleanedLines = append(cleanedLines, trimmedLine)
-	}
-
-
+	cleanedLines := p.cleanLines(string(data))
 	p.parse(cleanedLines)
 	return nil
 }
