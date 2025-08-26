@@ -3,7 +3,6 @@ package pkg
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -72,9 +71,9 @@ var ErrEmptyFile = errors.New("file is empty")
 var ErrInvalidRESP = errors.New("invalid RESP syntax")
 var ErrUnkType = errors.New("unknown RESP type")
 
-func (p *Parser) Parse(lines []string) error {
-	for i := 0; i < len(lines); {
-		element, consumed, err := p.parseOne(lines, i)
+func (p *Parser) Parse(data []byte) error {
+	for i := 0; i < len(data); {
+		element, consumed, err := p.parseOne(data[i:])
 		if err != nil {
 			return err
 		}
@@ -84,58 +83,62 @@ func (p *Parser) Parse(lines []string) error {
 	return nil
 }
 
-func (p *Parser) parseOne(lines []string, i int) (RespType, int, error) {
-	line := lines[i]
-	switch line[0] {
-	case '+': //simple String
-		return SimpleString{Value: line[1:]}, 1, nil
+func (p *Parser) parseOne(data []byte) (RespType, int, error) {
 
-	case '-': //simple error
-		return SimpleError{Value: line[1:]}, 1, nil
+	idx := strings.Index(string(data), "\r\n")
+	if idx == -1 {
+		return nil, 0, ErrInvalidRESP
+	}
+	switch data[0] {
+	case '+': //simple String	+OK\r\n
+		return SimpleString{Value: string(data[1:idx])}, idx + 2, nil
 
-	case ':': //integer
+	case '-': //simple error	-Error message\r\n
+		return SimpleError{Value: string(data[1:idx])}, idx + 2, nil
+
+	case ':': //integer		:1000\r\n
 		var value int
-		if _, err := fmt.Sscanf(line[1:], "%d", &value); err != nil {
+		if _, err := fmt.Sscanf(string(data[1:idx]), "%d", &value); err != nil {
 			return nil, 0, ErrInvalidRESP
 		}
-		return Integer{Value: value}, 1, nil
-	case '$': //Bulk String $<length>\r\n<data>\r\n
+		return Integer{Value: value}, idx + 2, nil
+
+	case '$': //Bulk String		$<length>\r\n<data>\r\n
 		var length int
-		if _, err := fmt.Sscanf(line[1:], "%d", &length); err != nil {
+		if _, err := fmt.Sscanf(string(data[1:idx]), "%d", &length); err != nil {
 			return nil, 0, ErrInvalidRESP
 		}
 
-		if length < 0 { // null bulk string
-			return BulkStrings{Value: "", Length: -1}, 1, nil
+		if length < 0 { // null bulk string		$-1\r\n
+			return BulkStrings{Value: "", Length: -1}, idx + 2, nil
 		}
 
-		if length == 0 { // empty bulk string
-			return BulkStrings{Value: "", Length: 0}, 1, nil
-		}
-		value := lines[i+1]
-
-		if len(value) != length {
-			return nil, 0, ErrInvalidRESP
+		if length == 0 { // empty bulk string 		$0\r\n\r\n
+			return BulkStrings{Value: "", Length: 0}, idx + 4, nil
 		}
 
-		return BulkStrings{Value: value, Length: length}, 2, nil
+		start := idx + 2
+		end := start + length
+		value := string(data[start:end])
+
+		return BulkStrings{Value: value, Length: length}, end + 2, nil
 
 	case '*': //Array *<count>\r\n<value1>\r\n<value2>\r\n...
 		var length int
-		if _, err := fmt.Sscanf(line[1:], "%d", &length); err != nil {
+		if _, err := fmt.Sscanf(string(data[1:idx]), "%d", &length); err != nil {
 			return nil, 0, ErrInvalidRESP
 		}
 
 		if length == 0 { // empty array
-			return Array{Values: make([]RespType, 0), Length: 0}, 1, nil
+			return Array{Values: make([]RespType, 0), Length: 0}, idx + 2, nil
 		}
 
 		arr := Array{Values: make([]RespType, 0, length), Length: length}
 
-		consumed := 1 // already consumed the count line
+		consumed := idx + 2 // already consumed the count line
 
 		for j := 0; j < length; j++ {
-			element, parsed, err := p.parseOne(lines, i+consumed)
+			element, parsed, err := p.parseOne(data[consumed:])
 			if err != nil {
 				return nil, 0, err
 			}
@@ -145,34 +148,4 @@ func (p *Parser) parseOne(lines []string, i int) (RespType, int, error) {
 		return arr, consumed, nil
 	}
 	return nil, 0, ErrUnkType
-}
-
-func cleanLines(data string) []string {
-	lines := strings.Split(string(data), "\n")
-
-	cleanedLines := make([]string, 0, len(lines))
-	for _, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-		if len(trimmedLine) == 0 {
-			continue
-		}
-		cleanedLines = append(cleanedLines, trimmedLine)
-	}
-	return cleanedLines
-}
-
-func (p *Parser) LoadFromFile(path string) error {
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return ErrFileNotExist
-	}
-
-	if len(data) == 0 {
-		return ErrEmptyFile
-	}
-
-	cleanedLines := cleanLines(string(data))
-	p.Parse(cleanedLines)
-	return nil
 }
