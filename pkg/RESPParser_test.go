@@ -138,7 +138,7 @@ func TestParse(t *testing.T) {
 		t.Run(testcase.testcaseName, func(t *testing.T) {
 			p := NewParser()
 			cleanedLines := cleanLines(testcase.fileString)
-			err := p.parse(cleanedLines)
+			err := p.Parse(cleanedLines)
 			if err != testcase.err {
 				t.Errorf("expected error: %v, got: %v", testcase.err, err)
 			}

@@ -72,7 +72,7 @@ var ErrEmptyFile = errors.New("file is empty")
 var ErrInvalidRESP = errors.New("invalid RESP syntax")
 var ErrUnkType = errors.New("unknown RESP type")
 
-func (p *Parser) parse(lines []string) error {
+func (p *Parser) Parse(lines []string) error {
 	for i := 0; i < len(lines); {
 		element, consumed, err := p.parseOne(lines, i)
 		if err != nil {
@@ -173,6 +173,6 @@ func (p *Parser) LoadFromFile(path string) error {
 	}
 
 	cleanedLines := cleanLines(string(data))
-	p.parse(cleanedLines)
+	p.Parse(cleanedLines)
 	return nil
 }
